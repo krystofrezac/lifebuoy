@@ -1,0 +1,22 @@
+version: 1
+source:
+  github:
+    owner: xxx
+    repository: xxx
+    revision: xxx
+build:
+  dockefileLocation: Dockefile
+  buildContext: xxx
+  timeout: xxx
+runtime:
+  routes:
+    - port: 8080
+      url: aaa.cz/something
+  volumes:
+    - type: managed
+      name: xxx
+      to: xxx
+    # Future
+    - type: manual
+      from: xxx
+      to: xxx

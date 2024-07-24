@@ -161,6 +161,7 @@ func RemoveContainer(name string) error {
 	return nil
 }
 
+// TODO: context
 func runCommand(name string, arg ...string) (bytes.Buffer, bytes.Buffer, error) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
