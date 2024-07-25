@@ -17,7 +17,7 @@ var managedLabel = domain + ".managed=true"
 
 var ContainerNotFoundError = errors.New("Container not found")
 
-type Conf struct {
+type Docker struct {
 	Logger *slog.Logger
 }
 
@@ -36,7 +36,7 @@ type containerInfo struct {
 	optsSha string
 }
 
-func (conf Conf) BuildImage(name string, dir string) error {
+func (conf Docker) BuildImage(name string, dir string) error {
 	stdout, stderr, err := runCommand(
 		"docker", "build", dir,
 		"--tag", name,
@@ -52,7 +52,7 @@ func (conf Conf) BuildImage(name string, dir string) error {
 }
 
 // Ensures that container is running with given configuration
-func (conf Conf) UpsertContainer(name string, opts DockerRunOpts) error {
+func (conf Docker) UpsertContainer(name string, opts DockerRunOpts) error {
 	containerInfo, err := conf.getContainerInfo(name)
 	containerExists := !errors.Is(err, ContainerNotFoundError)
 	if err != nil && containerExists {
@@ -103,7 +103,7 @@ func (conf Conf) UpsertContainer(name string, opts DockerRunOpts) error {
 }
 
 // name: name of the image and name of the container
-func (conf Conf) RunContainer(name string, opts DockerRunOpts) error {
+func (conf Docker) RunContainer(name string, opts DockerRunOpts) error {
 	var optsVolumeBindsArgs = make([]string, 0, len(opts.VolumeBinds)*2)
 	for _, volumeBind := range opts.VolumeBinds {
 		optsVolumeBindsArgs = append(optsVolumeBindsArgs, "--volume", volumeBind)
@@ -178,7 +178,7 @@ func runCommand(name string, arg ...string) (bytes.Buffer, bytes.Buffer, error) 
 	return stdout, stderr, err
 }
 
-func (conf Conf) getContainerStatus(name string) (string, error) {
+func (conf Docker) getContainerStatus(name string) (string, error) {
 	stdout, stderr, err := runCommand(
 		"docker", "container", "inspect", name,
 		"--format", `{{.State.Status}}`,
@@ -193,7 +193,7 @@ func (conf Conf) getContainerStatus(name string) (string, error) {
 	return trimmed, nil
 }
 
-func (conf Conf) getContainerInfo(name string) (containerInfo, error) {
+func (conf Docker) getContainerInfo(name string) (containerInfo, error) {
 	stdout, stderr, err := runCommand(
 		"docker", "container", "inspect", name,
 		"--format", `{{.State.Status}}-{{index .Image}}-{{index .Config.Labels "`+optsShaLabelName+`"}}`,
@@ -219,7 +219,7 @@ func (conf Conf) getContainerInfo(name string) (containerInfo, error) {
 	return containerInfo{status: status, imageId: imageId, optsSha: optsSha}, nil
 }
 
-func (conf Conf) getImageId(name string) (string, error) {
+func (conf Docker) getImageId(name string) (string, error) {
 	stdout, stderr, err := runCommand(
 		"docker", "image", "inspect", name,
 		"--format", "{{.Id}}",

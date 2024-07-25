@@ -19,7 +19,6 @@ func DownloadRepository(ctx context.Context, owner string, repo string, revision
 	if revision != nil {
 		url += "/" + *revision
 	}
-	println(url)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

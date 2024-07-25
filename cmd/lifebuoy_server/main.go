@@ -8,23 +8,51 @@ import (
 	"path"
 	"strings"
 
+	"github.com/docker/docker/client"
 	"github.com/go-playground/validator/v10"
-	"github.com/krystofrezac/lifebuoy/docker"
-	"github.com/krystofrezac/lifebuoy/github"
+	containermanager "github.com/krystofrezac/lifebuoy/internal/container_manager"
+	"github.com/krystofrezac/lifebuoy/internal/docker"
+	"github.com/krystofrezac/lifebuoy/internal/github"
 	"gopkg.in/yaml.v3"
 )
 
 func main() {
+	ctx := context.Background()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
 	flags := loadFlags(logger)
 
-	dockerConf := docker.Conf{
-		Logger: logger,
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	if err != nil {
+		logger.Error("Failed to initialize docker client", "err", err)
+		os.Exit(1)
 	}
 
-	err := dockerConf.BuildImage("dev.lifebuoy.internal.traefik", "assets/traefik")
+	dockerConf := docker.Docker{
+		Logger: logger,
+	}
+	containerManagerInstance := containermanager.NewContainerManager(
+		logger,
+		dockerClient,
+	)
+	repositoryBuildAppCreator := containermanager.NewRepositoryBuilderAppCreator(logger, dockerClient, dockerConf, flags.managedStoragePath)
+
+	go containerManagerInstance.Start(ctx)
+
+	containerManagerInstance.UpdateApps([]containermanager.App{
+		repositoryBuildAppCreator.Create(containermanager.RepositoryBuildAppCreateOpts{
+			// TODO: domain should be in manager
+			Name:               "lifebuoy.dev.rylis",
+			RepositoryOwner:    "krystofrezac",
+			RepositoryName:     "rylis",
+			RepositoryRevision: "main",
+		}),
+	})
+
+	select {}
+
+	err = dockerConf.BuildImage("dev.lifebuoy.internal.traefik", "assets/traefik")
 	if err != nil {
 		os.Exit(1)
 	}
