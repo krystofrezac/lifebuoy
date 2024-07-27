@@ -11,8 +11,9 @@ type flags struct {
 	confRepositoryName     string
 	confRepositoryRevision *string
 	githubToken            *string
-
-	managedStoragePath string
+	logLevel               slog.Level
+	managedStoragePath     string
+	resourcePrefix         string
 }
 
 func loadFlags(logger *slog.Logger) flags {
@@ -21,9 +22,18 @@ func loadFlags(logger *slog.Logger) flags {
 	confRepositoryRevision := flag.String("confRepositoryRevision", "", "Revision of the configuration repository. By default the default branch")
 	githubToken := flag.String("githubToken", "", "Token used for fetching repositories from Github")
 
+	logLevelRaw := flag.String("logLevel", "INFO", "")
 	managedStoragePath := flag.String("managedStoragePath", "tmp", "Path to a directory where Lifebuoy will store data")
+	resourcePrefix := flag.String("resourcePrefix", "dev.livebuoy.", "Prefix for docker resources(names/labels for images/containers)")
 
 	flag.Parse()
+
+	logLevel := slog.LevelVar{}
+	err := logLevel.UnmarshalText([]byte(*logLevelRaw))
+	if err != nil {
+		logger.Error("Failed to parse flag `logLevel`", "err", err)
+		os.Exit(1)
+	}
 
 	// Checking required flags
 	if *confRepositoryOwner == "" {
@@ -52,6 +62,8 @@ func loadFlags(logger *slog.Logger) flags {
 		confRepositoryName:     *confRepositoryName,
 		confRepositoryRevision: confRepositoryRevision,
 		githubToken:            githubToken,
+		logLevel:               logLevel.Level(),
 		managedStoragePath:     *managedStoragePath,
+		resourcePrefix:         *resourcePrefix,
 	}
 }

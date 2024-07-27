@@ -45,7 +45,8 @@ func (r RepositoryBuildAppCreator) Create(opts RepositoryBuildAppCreateOpts) App
 
 // App
 type RepositoryBuildAppCreateOpts struct {
-	Name               string
+	AppName            string
+	ResourceName       string
 	RepositoryOwner    string
 	RepositoryName     string
 	RepositoryRevision string
@@ -57,7 +58,7 @@ type repositoryBuildApp struct {
 }
 
 func (r repositoryBuildApp) IsBuilt(ctx context.Context) bool {
-	imageReference := fmt.Sprintf("%s:%s", r.Name, r.RepositoryRevision)
+	imageReference := r.getImageReference()
 	filters := filters.NewArgs(
 		filters.KeyValuePair{
 			Key:   "reference",
@@ -100,7 +101,7 @@ func (r repositoryBuildApp) Build(ctx context.Context) error {
 
 	r.logger.Info("Starting to build image")
 	err = r.customDockerClient.BuildImage(
-		fmt.Sprintf("%s:%s", r.Name, r.RepositoryRevision),
+		r.getImageReference(),
 		buildDir,
 	)
 
@@ -109,8 +110,13 @@ func (r repositoryBuildApp) Build(ctx context.Context) error {
 
 func (r repositoryBuildApp) Configuration() AppConfiguration {
 	return AppConfiguration{
-		AppName:      r.Name,
-		ImageName:    r.Name,
-		ImageVersion: r.RepositoryRevision,
+		AppName:       r.AppName,
+		ContainerName: r.ResourceName,
+		ImageName:     r.ResourceName,
+		ImageVersion:  r.RepositoryRevision,
 	}
+}
+
+func (r repositoryBuildApp) getImageReference() string {
+	return fmt.Sprintf("%s:%s", r.ResourceName, r.RepositoryRevision)
 }

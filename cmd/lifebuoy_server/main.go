@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/go-playground/validator/v10"
+	"github.com/krystofrezac/lifebuoy/internal/configuration"
 	containermanager "github.com/krystofrezac/lifebuoy/internal/container_manager"
 	"github.com/krystofrezac/lifebuoy/internal/docker"
 	"github.com/krystofrezac/lifebuoy/internal/github"
@@ -18,10 +19,11 @@ import (
 
 func main() {
 	ctx := context.Background()
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
-	}))
-	flags := loadFlags(logger)
+
+	flagsLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	flags := loadFlags(flagsLogger)
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: flags.logLevel}))
 
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
@@ -36,19 +38,26 @@ func main() {
 		logger,
 		dockerClient,
 	)
-	repositoryBuildAppCreator := containermanager.NewRepositoryBuilderAppCreator(logger, dockerClient, dockerConf, flags.managedStoragePath)
+	repositoryBuildAppCreator := containermanager.NewRepositoryBuilderAppCreator(
+		logger,
+		dockerClient,
+		dockerConf,
+		flags.managedStoragePath,
+	)
+	configurationManager := configuration.NewConfigurationManager(
+		logger,
+		flags.confRepositoryOwner,
+		flags.confRepositoryName,
+		flags.confRepositoryRevision,
+		flags.githubToken,
+		flags.managedStoragePath,
+		flags.resourcePrefix,
+		repositoryBuildAppCreator,
+		containerManagerInstance,
+	)
 
 	go containerManagerInstance.Start(ctx)
-
-	containerManagerInstance.UpdateApps([]containermanager.App{
-		repositoryBuildAppCreator.Create(containermanager.RepositoryBuildAppCreateOpts{
-			// TODO: domain should be in manager
-			Name:               "lifebuoy.dev.rylis",
-			RepositoryOwner:    "krystofrezac",
-			RepositoryName:     "rylis",
-			RepositoryRevision: "main",
-		}),
-	})
+	go configurationManager.Start(ctx)
 
 	select {}
 

@@ -4,7 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -35,7 +35,7 @@ func DownloadRepository(ctx context.Context, owner string, repo string, revision
 	}
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		return errors.New("Non 200 response code")
+		return fmt.Errorf("Non 200 response code, response=%#v", res)
 	}
 
 	return untar(destinationDir, res.Body)

@@ -24,8 +24,9 @@ type ContainerManager struct {
 	dockerClient      *client.Client
 	appsChangeChannel chan []App
 	ticker            *time.Ticker
-	apps              []App
-	buildProcessor    *queues.UniqueJobProcessor
+	// Nil = haven't received the configuratino yet
+	apps           []App
+	buildProcessor *queues.UniqueJobProcessor
 }
 
 func NewContainerManager(logger *slog.Logger, dockerClient *client.Client) ContainerManager {
@@ -56,11 +57,7 @@ func (c ContainerManager) Start(ctx context.Context) {
 		}
 
 		c.logger.Debug("Container reconcile started")
-		reconcileCtx, cancel := context.WithTimeout(ctx, reconcileTimeout)
-		c.reconcile(
-			reconcileCtx,
-		)
-		cancel()
+		c.reconcile(ctx)
 		c.logger.Debug("Container reconcile finished")
 	}
 }
@@ -76,6 +73,9 @@ TODO:
 - delete containers for non existing apps
 */
 func (c ContainerManager) reconcile(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
+	defer cancel()
+
 	listFilters := filters.NewArgs(filters.KeyValuePair{Key: "label", Value: managedLabel + "=true"})
 
 	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{Filters: listFilters})
@@ -127,13 +127,13 @@ func (c ContainerManager) startApp(ctx context.Context, app App) error {
 		nil,
 		nil,
 		nil,
-		appConfiguration.AppName,
+		appConfiguration.ContainerName,
 	)
 	if err != nil {
 		return err
 	}
 
-	err = c.dockerClient.ContainerStart(ctx, appConfiguration.AppName, container.StartOptions{})
+	err = c.dockerClient.ContainerStart(ctx, appConfiguration.ContainerName, container.StartOptions{})
 	return err
 }
 

@@ -11,9 +11,10 @@ type AppConfigurationRoute struct {
 }
 
 type AppConfiguration struct {
-	AppName      string
-	ImageName    string
-	ImageVersion string
+	AppName       string
+	ContainerName string
+	ImageName     string
+	ImageVersion  string
 
 	// TODO: goal state
 	// Routes []AppConfigurationRoute
