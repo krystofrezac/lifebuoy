@@ -97,6 +97,7 @@ func (c ContainerManager) reconcile(ctx context.Context) {
 
 	for _, app := range appsToBeCreated {
 		if !app.IsBuilt(ctx) {
+			// TODO: This can lead to deadlock
 			c.buildProcessor.Process(app.Configuration().AppName, func() error {
 				return app.Build(ctx)
 			})

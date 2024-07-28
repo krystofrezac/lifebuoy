@@ -30,7 +30,8 @@ type ConfigurationManager struct {
 	downloadDir               string
 	appsConfigurationDir      string
 	// nil = don't have apps yet
-	lastApps []containermanager.App
+	lastApps          []containermanager.App
+	lastRepositorySha string
 }
 
 type appConfiguration struct {
@@ -78,6 +79,7 @@ func NewConfigurationManager(
 		downloadDir:               downloadDir,
 		appsConfigurationDir:      appsConfigurationDir,
 		lastApps:                  nil,
+		lastRepositorySha:         "",
 	}
 }
 
@@ -95,8 +97,19 @@ func (c *ConfigurationManager) checkForChanges(ctx context.Context) {
 
 	configPath := path.Join(c.managedStoragePath, c.downloadDir)
 
-	// TODO: download only if ref changed
-	err := github.DownloadRepository(
+	revisionSha, err := github.GetSha(ctx, c.repositoryOwner, c.repositoryName, c.repositoryRevision, c.githubToken)
+	if err != nil {
+		c.logger.Error("Failed to get revision sha", "err", err)
+		return
+	}
+
+	if c.lastRepositorySha == revisionSha {
+		c.logger.Debug("Configuration sha haven't changed")
+		return
+	}
+	c.lastRepositorySha = revisionSha
+
+	err = github.DownloadRepository(
 		ctx,
 		c.repositoryOwner,
 		c.repositoryName,

@@ -14,6 +14,37 @@ import (
 
 var firstDirNameRegex = regexp.MustCompile("^[^/]*/")
 
+func GetSha(ctx context.Context, owner string, repo string, revision *string, token *string) (string, error) {
+	var url = "https://api.github.com/repos/" + owner + "/" + repo + "/commits/"
+	if revision != nil {
+		url += *revision
+	} else {
+		url += "HEAD"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Add("Accept", "application/vnd.github.sha")
+	if token != nil {
+		req.Header.Add("Authorization", "Bearer "+*token)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return "", fmt.Errorf("Non 200 response code, response=%#v", res)
+	}
+
+	sha, err := io.ReadAll(res.Body)
+	return string(sha), err
+}
+
 func DownloadRepository(ctx context.Context, owner string, repo string, revision *string, token *string, destinationDir string) error {
 	var url = "https://api.github.com/repos/" + owner + "/" + repo + "/tarball"
 	if revision != nil {

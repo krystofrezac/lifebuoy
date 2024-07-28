@@ -16,6 +16,7 @@ type JobFinishedEvent struct {
 }
 
 type UniqueJobProcessor struct {
+	// If full events will be dropped
 	JobFinishedChannel          chan JobFinishedEvent
 	processorPoolSize           int
 	queue                       []queueItem
@@ -60,7 +61,10 @@ func (u *UniqueJobProcessor) Start() {
 		case event := <-u.jobFinishedInternalChannel:
 			u.numberOfJobsBeingProcessed--
 			u.fillProcessors()
-			u.JobFinishedChannel <- event
+			select {
+			case u.JobFinishedChannel <- event:
+			default:
+			}
 
 		case processorPoolSize := <-u.setProcessorPoolSizeChannel:
 			u.processorPoolSize = processorPoolSize

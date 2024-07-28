@@ -20,10 +20,10 @@ import (
 func main() {
 	ctx := context.Background()
 
-	flagsLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	flags := loadFlags(flagsLogger)
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: flags.logLevel}))
+	logLevel := new(slog.LevelVar)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: logLevel}))
+	flags := loadFlags(logger)
+	logLevel.Set(flags.logLevel)
 
 	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
