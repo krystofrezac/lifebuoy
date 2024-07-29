@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/krystofrezac/lifebuoy/internal/apps"
 	containermanager "github.com/krystofrezac/lifebuoy/internal/container_manager"
 	"github.com/krystofrezac/lifebuoy/internal/github"
 	"gopkg.in/yaml.v3"
@@ -23,14 +24,15 @@ type ConfigurationManager struct {
 	githubToken               *string
 	managedStoragePath        string
 	resourcePrefix            string
-	repositoryBuildAppCreator containermanager.RepositoryBuildAppCreator
+	repositoryBuildAppCreator apps.RepositoryBuildAppCreator
+	dockefileAppCreator       apps.DockerFileAppCreator
 	containerManager          containermanager.ContainerManager
 	ticker                    *time.Ticker
 	iterTimeout               time.Duration
 	downloadDir               string
 	appsConfigurationDir      string
 	// nil = don't have apps yet
-	lastApps          []containermanager.App
+	apps              []apps.App
 	lastRepositorySha string
 }
 
@@ -53,7 +55,8 @@ func NewConfigurationManager(
 	githubToken *string,
 	managedStoragePath string,
 	resourcePrefix string,
-	repositoryBuildAppCreator containermanager.RepositoryBuildAppCreator,
+	repositoryBuildAppCreator apps.RepositoryBuildAppCreator,
+	dockefileAppCreator apps.DockerFileAppCreator,
 	containerManager containermanager.ContainerManager,
 ) *ConfigurationManager {
 	// TODO: make it configurable, beware the rate limit
@@ -73,12 +76,13 @@ func NewConfigurationManager(
 		managedStoragePath:        managedStoragePath,
 		resourcePrefix:            resourcePrefix,
 		repositoryBuildAppCreator: repositoryBuildAppCreator,
+		dockefileAppCreator:       dockefileAppCreator,
 		containerManager:          containerManager,
 		ticker:                    ticker,
 		iterTimeout:               iterTimeout,
 		downloadDir:               downloadDir,
 		appsConfigurationDir:      appsConfigurationDir,
-		lastApps:                  nil,
+		apps:                      nil,
 		lastRepositorySha:         "",
 	}
 }
@@ -127,11 +131,16 @@ func (c *ConfigurationManager) checkForChanges(ctx context.Context) {
 		c.logger.Error("Failed to read app configurations", "err", err)
 		return
 	}
-	didAppsChange := c.didAppsChange(apps)
-	c.lastApps = apps
+	apps = append(apps, c.getDefaultApps()...)
 
-	// TODO: Check unique names
-	// TODO: Add default apps (treafik)
+	didAppsChange := c.didAppsChange(apps)
+	c.apps = apps
+
+	err = c.checkAppsNameCollisions()
+	if err != nil {
+		c.logger.Error(err.Error())
+		return
+	}
 
 	if didAppsChange {
 		c.logger.Info("Apps configuration changed")
@@ -141,7 +150,7 @@ func (c *ConfigurationManager) checkForChanges(ctx context.Context) {
 	c.logger.Debug("Configuration check finished")
 }
 
-func (c *ConfigurationManager) readAppConfigurations(dir string) ([]containermanager.App, error) {
+func (c *ConfigurationManager) readAppConfigurations(dir string) ([]apps.App, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 
 	entries, err := os.ReadDir(dir)
@@ -149,7 +158,7 @@ func (c *ConfigurationManager) readAppConfigurations(dir string) ([]containerman
 		return nil, err
 	}
 
-	var appConfigurations = make([]containermanager.App, 0, len(entries))
+	var appConfigurations = make([]apps.App, 0, len(entries))
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() {
 			continue
@@ -175,7 +184,7 @@ func (c *ConfigurationManager) readAppConfigurations(dir string) ([]containerman
 			return nil, err
 		}
 
-		app := c.repositoryBuildAppCreator.Create(containermanager.RepositoryBuildAppCreateOpts{
+		app := c.repositoryBuildAppCreator.Create(apps.RepositoryBuildAppCreateOpts{
 			AppName:            appName,
 			ResourceName:       c.resourcePrefix + appName,
 			RepositoryOwner:    decoded.Source.Github.Owner,
@@ -189,16 +198,30 @@ func (c *ConfigurationManager) readAppConfigurations(dir string) ([]containerman
 	return appConfigurations, nil
 }
 
-func (c *ConfigurationManager) didAppsChange(newApps []containermanager.App) bool {
-	if c.lastApps == nil {
+func (c *ConfigurationManager) getDefaultApps() []apps.App {
+	return []apps.App{
+		c.dockefileAppCreator.Create(apps.DockefileAppCreateOpts{
+			AppName:      "dev.lifebuoy.internal.traefik",
+			ResourceName: "dev.lifebuoy.internal.traefik",
+			Dockerfile: `
+				FROM traefik:v3.1.0
+				RUN mkdir /etc/traefik
+				RUN echo "providers: {'docker': {}}" > /etc/traefik/traefik.yml
+				`,
+		}),
+	}
+}
+
+func (c *ConfigurationManager) didAppsChange(newApps []apps.App) bool {
+	if c.apps == nil {
 		return true
 	}
 
-	if len(c.lastApps) != len(newApps) {
+	if len(c.apps) != len(newApps) {
 		return true
 	}
 
-	for i, lastItem := range c.lastApps {
+	for i, lastItem := range c.apps {
 		newItem := newApps[i]
 		if lastItem != newItem {
 			return true
@@ -206,4 +229,30 @@ func (c *ConfigurationManager) didAppsChange(newApps []containermanager.App) boo
 	}
 
 	return false
+}
+
+func (c *ConfigurationManager) checkAppsNameCollisions() error {
+	grouped := make(map[string]int, len(c.apps))
+	for _, app := range c.apps {
+		name := app.Configuration().AppName
+		prev, prevOk := grouped[name]
+		if prevOk {
+			grouped[name] = prev + 1
+		} else {
+			grouped[name] = 0
+		}
+	}
+
+	var collisions []string
+	for name, count := range grouped {
+		if count > 0 {
+			collisions = append(collisions, name)
+		}
+	}
+
+	if len(collisions) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("There are multiple apps with the same name. Duplicate names %+v", collisions)
 }

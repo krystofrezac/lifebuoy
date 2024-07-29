@@ -1,4 +1,4 @@
-package containermanager
+package apps
 
 import (
 	"context"
@@ -20,6 +20,14 @@ type RepositoryBuildAppCreator struct {
 	dockerClient       *client.Client
 	customDockerClient docker.Docker
 	managedStoragePath string
+}
+
+type RepositoryBuildAppCreateOpts struct {
+	AppName            string
+	ResourceName       string
+	RepositoryOwner    string
+	RepositoryName     string
+	RepositoryRevision string
 }
 
 func NewRepositoryBuilderAppCreator(
@@ -44,21 +52,13 @@ func (r RepositoryBuildAppCreator) Create(opts RepositoryBuildAppCreateOpts) App
 }
 
 // App
-type RepositoryBuildAppCreateOpts struct {
-	AppName            string
-	ResourceName       string
-	RepositoryOwner    string
-	RepositoryName     string
-	RepositoryRevision string
-}
-
 type repositoryBuildApp struct {
 	RepositoryBuildAppCreator
 	RepositoryBuildAppCreateOpts
 }
 
 func (r repositoryBuildApp) IsBuilt(ctx context.Context) bool {
-	imageReference := r.getImageReference()
+	imageReference := r.getImage()
 	filters := filters.NewArgs(
 		filters.KeyValuePair{
 			Key:   "reference",
@@ -101,7 +101,7 @@ func (r repositoryBuildApp) Build(ctx context.Context) error {
 
 	r.logger.Info("Starting to build image")
 	err = r.customDockerClient.BuildImage(
-		r.getImageReference(),
+		r.getImage(),
 		buildDir,
 	)
 
@@ -112,11 +112,10 @@ func (r repositoryBuildApp) Configuration() AppConfiguration {
 	return AppConfiguration{
 		AppName:       r.AppName,
 		ContainerName: r.ResourceName,
-		ImageName:     r.ResourceName,
-		ImageVersion:  r.RepositoryRevision,
+		Image:         r.getImage(),
 	}
 }
 
-func (r repositoryBuildApp) getImageReference() string {
+func (r repositoryBuildApp) getImage() string {
 	return fmt.Sprintf("%s:%s", r.ResourceName, r.RepositoryRevision)
 }

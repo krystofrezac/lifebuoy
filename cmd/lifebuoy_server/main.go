@@ -10,8 +10,9 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/go-playground/validator/v10"
+	"github.com/krystofrezac/lifebuoy/internal/apps"
 	"github.com/krystofrezac/lifebuoy/internal/configuration"
-	containermanager "github.com/krystofrezac/lifebuoy/internal/container_manager"
+	"github.com/krystofrezac/lifebuoy/internal/container_manager"
 	"github.com/krystofrezac/lifebuoy/internal/docker"
 	"github.com/krystofrezac/lifebuoy/internal/github"
 	"gopkg.in/yaml.v3"
@@ -38,12 +39,13 @@ func main() {
 		logger,
 		dockerClient,
 	)
-	repositoryBuildAppCreator := containermanager.NewRepositoryBuilderAppCreator(
+	repositoryBuildAppCreator := apps.NewRepositoryBuilderAppCreator(
 		logger,
 		dockerClient,
 		dockerConf,
 		flags.managedStoragePath,
 	)
+	dockefileAppCreator := apps.NewDockefileAppCreator(logger, dockerClient)
 	configurationManager := configuration.NewConfigurationManager(
 		logger,
 		flags.confRepositoryOwner,
@@ -53,6 +55,7 @@ func main() {
 		flags.managedStoragePath,
 		flags.resourcePrefix,
 		repositoryBuildAppCreator,
+		dockefileAppCreator,
 		containerManagerInstance,
 	)
 

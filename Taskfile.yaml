@@ -1,0 +1,26 @@
+version: '3'
+
+tasks:
+  default:
+    cmds:
+      - task: dev
+
+  dev:
+    cmds:
+      - go run cmd/lifebuoy_server/*.go -confRepositoryOwner krystofrezac -confRepositoryName server-configuration -logLevel DEBUG
+
+  test:
+    cmds:
+      - go test ./...
+
+  format:
+    cmds:
+      - gofmt -s -w .
+
+  check_format:
+    cmds:
+      - |
+        unformatted_files=$(gofmt -s -l .)
+        echo Unformatted files:
+        echo $unformatted_files
+        test -z $unformatted_files

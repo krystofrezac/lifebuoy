@@ -1,7 +1,6 @@
 package queues
 
 import (
-	"fmt"
 	"slices"
 )
 
@@ -16,7 +15,6 @@ type JobFinishedEvent struct {
 }
 
 type UniqueJobProcessor struct {
-	// If full events will be dropped
 	JobFinishedChannel          chan JobFinishedEvent
 	processorPoolSize           int
 	queue                       []queueItem
@@ -58,13 +56,9 @@ func (u *UniqueJobProcessor) Start() {
 			u.queue = append(u.queue, job)
 			u.fillProcessors()
 
-		case event := <-u.jobFinishedInternalChannel:
+		case _ = <-u.jobFinishedInternalChannel:
 			u.numberOfJobsBeingProcessed--
 			u.fillProcessors()
-			select {
-			case u.JobFinishedChannel <- event:
-			default:
-			}
 
 		case processorPoolSize := <-u.setProcessorPoolSizeChannel:
 			u.processorPoolSize = processorPoolSize
@@ -84,7 +78,6 @@ func (u *UniqueJobProcessor) Process(id string, job func() error) {
 }
 
 func (u *UniqueJobProcessor) fillProcessors() {
-	fmt.Printf("Filling processors: queue=%v, numberOfJobs=%v, poolSize=%v\n", u.queue, u.numberOfJobsBeingProcessed, u.processorPoolSize)
 	for u.numberOfJobsBeingProcessed < u.processorPoolSize && len(u.queue) > 0 {
 		job := u.queue[0]
 		u.queue = u.queue[1:]
@@ -97,9 +90,11 @@ func (u *UniqueJobProcessor) processItem(job queueItem) {
 	go func() {
 		err := job.job()
 
-		u.jobFinishedInternalChannel <- JobFinishedEvent{
+		event := JobFinishedEvent{
 			Id:     job.id,
 			Result: err,
 		}
+		u.jobFinishedInternalChannel <- event
+		u.JobFinishedChannel <- event
 	}()
 }

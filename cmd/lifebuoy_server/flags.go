@@ -24,7 +24,7 @@ func loadFlags(logger *slog.Logger) flags {
 
 	logLevelRaw := flag.String("logLevel", "INFO", "")
 	managedStoragePath := flag.String("managedStoragePath", "tmp", "Path to a directory where Lifebuoy will store data")
-	resourcePrefix := flag.String("resourcePrefix", "dev.livebuoy.", "Prefix for docker resources(names/labels for images/containers)")
+	resourcePrefix := flag.String("resourcePrefix", "dev.lifebuoy.", "Prefix for docker resources(names/labels for images/containers)")
 
 	flag.Parse()
 
