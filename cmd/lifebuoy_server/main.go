@@ -22,7 +22,10 @@ func main() {
 	ctx := context.Background()
 
 	logLevel := new(slog.LevelVar)
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, Level: logLevel}))
+	logger := slog.New(
+		slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: logLevel}),
+	)
+
 	flags := loadFlags(logger)
 	logLevel.Set(flags.logLevel)
 

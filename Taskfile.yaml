@@ -1,13 +1,9 @@
 version: '3'
 
 tasks:
-  default:
-    cmds:
-      - task: dev
-
   dev:
     cmds:
-      - go run cmd/lifebuoy_server/*.go -confRepositoryOwner krystofrezac -confRepositoryName server-configuration -logLevel DEBUG
+      - go run cmd/lifebuoy_server/*.go -confRepositoryOwner krystofrezac -confRepositoryName server-configuration -githubToken {{.githubToken}} -logLevel DEBUG
 
   test:
     cmds:

@@ -111,11 +111,14 @@ func (r repositoryBuildApp) Build(ctx context.Context) error {
 func (r repositoryBuildApp) Configuration() AppConfiguration {
 	return AppConfiguration{
 		AppName:       r.AppName,
-		ContainerName: r.ResourceName,
+		ContainerName: r.getContainerName(),
 		Image:         r.getImage(),
 	}
 }
 
 func (r repositoryBuildApp) getImage() string {
 	return fmt.Sprintf("%s:%s", r.ResourceName, r.RepositoryRevision)
+}
+func (r repositoryBuildApp) getContainerName() string {
+	return fmt.Sprintf("%s_%s", r.ResourceName, r.RepositoryRevision)
 }
