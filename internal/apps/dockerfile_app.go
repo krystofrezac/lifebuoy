@@ -22,9 +22,8 @@ type DockerFileAppCreator struct {
 }
 
 type DockefileAppCreateOpts struct {
-	AppName      string
-	ResourceName string
-	Dockerfile   string
+	AppName    string
+	Dockerfile string
 }
 
 func NewDockefileAppCreator(
@@ -128,14 +127,13 @@ func (d DockeFileApp) Build(ctx context.Context) error {
 
 func (d DockeFileApp) Configuration() AppConfiguration {
 	return AppConfiguration{
-		AppName:       d.AppName,
-		ContainerName: d.ResourceName,
-		Image:         d.getImage(),
+		AppName: d.AppName,
+		Image:   d.getImage(),
 		// TODO: volumes
 	}
 }
 
 func (d DockeFileApp) getImage() string {
 	sha := fmt.Sprintf("%x", sha256.Sum256([]byte(d.Dockerfile)))
-	return fmt.Sprintf("%s:%s", d.ResourceName, sha)
+	return fmt.Sprintf("%s:%s", d.AppName, sha)
 }

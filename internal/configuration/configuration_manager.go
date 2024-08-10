@@ -186,7 +186,6 @@ func (c *ConfigurationManager) readAppConfigurations(dir string) ([]apps.App, er
 
 		app := c.repositoryBuildAppCreator.Create(apps.RepositoryBuildAppCreateOpts{
 			AppName:            appName,
-			ResourceName:       c.resourcePrefix + appName,
 			RepositoryOwner:    decoded.Source.Github.Owner,
 			RepositoryName:     decoded.Source.Github.Repository,
 			RepositoryRevision: decoded.Source.Github.Revision,
@@ -201,8 +200,7 @@ func (c *ConfigurationManager) readAppConfigurations(dir string) ([]apps.App, er
 func (c *ConfigurationManager) getDefaultApps() []apps.App {
 	return []apps.App{
 		c.dockefileAppCreator.Create(apps.DockefileAppCreateOpts{
-			AppName:      "dev.lifebuoy.internal.traefik",
-			ResourceName: "dev.lifebuoy.internal.traefik",
+			AppName: "internal.traefik",
 			Dockerfile: `
 				FROM traefik:v3.1.0
 				RUN mkdir /etc/traefik

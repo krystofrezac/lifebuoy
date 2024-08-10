@@ -20,11 +20,11 @@ type RepositoryBuildAppCreator struct {
 	dockerClient       *client.Client
 	customDockerClient docker.Docker
 	managedStoragePath string
+	resourcePrefix     string
 }
 
 type RepositoryBuildAppCreateOpts struct {
 	AppName            string
-	ResourceName       string
 	RepositoryOwner    string
 	RepositoryName     string
 	RepositoryRevision string
@@ -35,12 +35,14 @@ func NewRepositoryBuilderAppCreator(
 	dockerClient *client.Client,
 	customDockerClient docker.Docker,
 	managedStoragePath string,
+	resourcePrefix string,
 ) RepositoryBuildAppCreator {
 	return RepositoryBuildAppCreator{
 		logger:             logger,
 		customDockerClient: customDockerClient,
 		dockerClient:       dockerClient,
 		managedStoragePath: managedStoragePath,
+		resourcePrefix:     resourcePrefix,
 	}
 }
 
@@ -110,15 +112,11 @@ func (r repositoryBuildApp) Build(ctx context.Context) error {
 
 func (r repositoryBuildApp) Configuration() AppConfiguration {
 	return AppConfiguration{
-		AppName:       r.AppName,
-		ContainerName: r.getContainerName(),
-		Image:         r.getImage(),
+		AppName: r.AppName,
+		Image:   r.getImage(),
 	}
 }
 
 func (r repositoryBuildApp) getImage() string {
-	return fmt.Sprintf("%s:%s", r.ResourceName, r.RepositoryRevision)
-}
-func (r repositoryBuildApp) getContainerName() string {
-	return fmt.Sprintf("%s_%s", r.ResourceName, r.RepositoryRevision)
+	return fmt.Sprintf("%s%s:%s", r.resourcePrefix, r.AppName, r.RepositoryRevision)
 }
